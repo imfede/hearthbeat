@@ -1,0 +1,13 @@
+[Unit]
+Description=Very simple heartbeat service
+
+[Service]
+User=alarm
+Group=alarm
+Type=forking
+PIDFile=/var/hearthbeat/pid
+ExecStart=/usr/local/bin/beat
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
