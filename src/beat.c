@@ -13,12 +13,23 @@
 
 const char *pidfilename = "/var/hearthbeat/pid";
 const char *message = "bip";
+int port = 0xBEA7;
+
+int tcp_server_socket;
+int tcp_sock;
 bool stopping = false;
 
 void removepidfile() {
     if (unlink(pidfilename) < 0) {
         fprintf(stderr, "Unable to remove pidfile, error: %d", errno);
     }
+}
+
+void die(int code, char *message, ...) {
+    va_list fmtargs;
+    fprintf(stderr, message, fmtargs);
+    removepidfile();
+    exit(code);
 }
 
 void signal_handler(int signo) {
@@ -35,6 +46,17 @@ int main(int argc, char **argv) {
     if (fork_pid == 0) {
         // child
 
+        FILE *pid_file = fopen(pidfilename, "w");
+        if (pid_file == NULL) {
+            die(errno, "Error creating file: %d\n", errno);
+        }
+        if (fprintf(pid_file, "%d", getpid()) < 0) {
+            die(-1, "Error trying to write pid to file\n");
+        }
+        if (fclose(pid_file) != 0) {
+            die(errno, "Error closing pidfile: %d\n", errno);
+        }
+
         struct sigaction action;
         action.sa_handler = signal_handler;
         action.sa_flags = 0;
@@ -45,61 +67,46 @@ int main(int argc, char **argv) {
         struct sockaddr_in server_address;
         memset(&server_address, 0, sizeof(server_address));
         server_address.sin_family = AF_INET;
-        server_address.sin_port = htons(0xBEA7);
+        server_address.sin_port = htons(argc > 1 ? atoi(argv[1]) : port);
         server_address.sin_addr.s_addr = htonl(INADDR_ANY);
 
-        int server_socket = socket(PF_INET, SOCK_STREAM, 0);
-        if (server_socket < 0) {
-            fprintf(stderr, "Error creating socket\n");
-            removepidfile();
-            exit(-1);
+        tcp_server_socket = socket(PF_INET, SOCK_STREAM, 0);
+        if (tcp_server_socket < 0) {
+            die(-1, "Error creating socket\n");
         }
 
-        if (bind(server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
-            fprintf(stderr, "Cannot bind socket, error: %d\n", errno);
-            removepidfile();
-            exit(-1);
+        if (bind(tcp_server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
+            die(errno, "Cannot bind socket, error: %d\n", errno);
         }
 
-        if (listen(server_socket, 16) < 0) {
-            fprintf(stderr, "Cannot listen to socket, error: %d\n", errno);
-            removepidfile();
-            exit(-1);
+        if (listen(tcp_server_socket, 16) < 0) {
+            die(errno, "Cannot listen to socket, error: %d\n", errno);
         }
 
         while (1) {
-            int sock = accept(server_socket, NULL, NULL);
+            tcp_sock = accept(tcp_server_socket, NULL, NULL);
             if (stopping) {
                 printf("Stopping\n");
-                close(sock);
-                close(server_socket);
+                close(tcp_sock);
+                close(tcp_server_socket);
                 removepidfile();
                 exit(0);
             }
-            if (sock < 0) {
-                fprintf(stderr, "Cannot accept socket, error: %d\n", errno);
-            } else {
-                if (send(sock, message, strlen(message), 0) < 0) {
-                    fprintf(stderr, "Cannot send message to socket, error: %d\n", errno);
-                }
 
-                if (close(sock) < 0) {
-                    fprintf(stderr, "Cannot close socket, error: %d\n", errno);
-                }
+            if (tcp_sock < 0) {
+                fprintf(stderr, "Cannot accept socket, error: %d\n", errno);
+            }
+
+            if (send(tcp_sock, message, strlen(message), 0) < 0) {
+                fprintf(stderr, "Cannot send message to socket, error: %d\n", errno);
+            }
+
+            if (close(tcp_sock) < 0) {
+                fprintf(stderr, "Cannot close socket, error: %d\n", errno);
             }
         }
     } else {
         // parent
-        FILE *pid_file = fopen(pidfilename, "w");
-        if (pid_file == NULL) {
-            fprintf(stderr, "Error creating file: %d", errno);
-            exit(errno);
-        }
-        int print_ret = fprintf(pid_file, "%d", fork_pid);
-        if (print_ret < 0) {
-            fprintf(stderr, "Error trying to write pid to file");
-            exit(-1);
-        }
         printf("Spawned child with pid %d, parent now dying\n", fork_pid);
     }
 }
