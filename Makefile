@@ -7,7 +7,7 @@ clean:
 install:
 	sudo mv beat /usr/local/bin/beat
 	sudo cp beat.service /usr/lib/systemd/system/beat.service
-	sudo mkdir /var/hearthbeat
+	sudo mkdir -p /var/hearthbeat
 
 uninstall:
 	sudo rm /usr/local/bin/beat

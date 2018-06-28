@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "Error decoding: %d %d %d\n", err, errno, sockaddr_len);
                 fprintf(stderr, "Error: %s\n", gai_strerror(err));
             } else {
-                printf("Client connected: %s\n", out);
+                printf("Sending bip to: %s\n", out);
                 fflush(stdout);
             }
 
