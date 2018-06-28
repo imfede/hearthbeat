@@ -1,3 +1,4 @@
+#include <argp.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
@@ -14,12 +15,36 @@
 
 const char *pidfilename = "/var/hearthbeat/pid";
 const char *message = "bip";
-int port = 0xBEA7;
 
 int tcp_server_socket;
 int tcp_sock;
 pid_t fork_pid;
 bool stopping = false;
+
+const char *argp_program_version = "v0.1";
+const char *argp_program_bug_address = "federico.cergol@gmail.com ($ gpg --keyserver pgp.mit.edu --recv-key 0x2C831564)";
+const char doc[] = "A simple heartbeat program";
+const char arg_doc[] = "-p <port> --no-fork";
+const struct argp_option options[] = {{"port", 'p', "port", 0, "Port on which the program will listen on", 0}, {"no-fork", 'n', NULL, 0, "Do not fork"}, {0}};
+struct arguments {
+    int port;
+    bool fork;
+};
+error_t parse_opt(int key, char *arg, struct argp_state *state) {
+    struct arguments *arguments = state->input;
+    switch (key) {
+    case 'p':
+        arguments->port = atoi(arg);
+        break;
+    case 'n':
+        arguments->fork = false;
+        break;
+    default:
+        return ARGP_ERR_UNKNOWN;
+    }
+    return 0;
+}
+const struct argp argp = {options, parse_opt, arg_doc, doc};
 
 void removepidfile() {
     if (fork_pid && unlink(pidfilename) < 0) {
@@ -48,12 +73,18 @@ void signal_handler(int signo) {
 
 int main(int argc, char **argv) {
 
-    fork_pid = argc < 2 ? fork() : 0;
+    struct arguments arguments;
+    arguments.port = 0xBEA7;
+    arguments.fork = true;
+
+    argp_parse(&argp, argc, argv, 0, 0, &arguments);
+
+    fork_pid = arguments.fork ? fork() : 0;
 
     if (fork_pid == 0) {
         // child
 
-        if (argc < 2) {
+        if (arguments.fork) {
             FILE *pid_file = fopen(pidfilename, "w");
             if (pid_file == NULL) {
                 die(errno, "Error creating file: %d\n", errno);
@@ -72,7 +103,7 @@ int main(int argc, char **argv) {
         struct sockaddr_in server_address;
         memset(&server_address, 0, sizeof(server_address));
         server_address.sin_family = AF_INET;
-        server_address.sin_port = htons(argc > 1 ? atoi(argv[1]) : port);
+        server_address.sin_port = htons(arguments.port);
         server_address.sin_addr.s_addr = htonl(INADDR_ANY);
 
         tcp_server_socket = socket(PF_INET, SOCK_STREAM, 0);
@@ -88,6 +119,7 @@ int main(int argc, char **argv) {
             die(errno, "Cannot listen to socket, error: %d\n", errno);
         }
 
+        printf("Listening now on port %d\n", arguments.port);
         while (1) {
             struct sockaddr_in client_addr;
             socklen_t sockaddr_len;
