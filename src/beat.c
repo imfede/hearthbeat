@@ -1,8 +1,10 @@
 #include <argp.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -18,6 +20,7 @@ const char *message = "bip";
 
 int tcp_server_socket;
 int tcp_sock;
+int udp_server_socket;
 pid_t fork_pid;
 bool stopping = false;
 
@@ -66,6 +69,8 @@ void signal_handler(int signo) {
             close(tcp_server_socket);
         if (tcp_sock != 0)
             close(tcp_sock);
+        if (udp_server_socket != 0)
+            close(udp_server_socket);
         removepidfile();
         exit(0);
     }
@@ -100,6 +105,7 @@ int main(int argc, char **argv) {
         signal(SIGINT, signal_handler);
         signal(SIGTERM, signal_handler);
 
+        // create and bind TCP
         struct sockaddr_in server_address;
         memset(&server_address, 0, sizeof(server_address));
         server_address.sin_family = AF_INET;
@@ -108,44 +114,92 @@ int main(int argc, char **argv) {
 
         tcp_server_socket = socket(PF_INET, SOCK_STREAM, 0);
         if (tcp_server_socket < 0) {
-            die(-1, "Error creating socket\n");
+            die(-1, "Error creating TCP socket\n");
         }
 
+        fcntl(tcp_server_socket, F_SETFL, O_NONBLOCK);
+
         if (bind(tcp_server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
-            die(errno, "Cannot bind socket, error: %d\n", errno);
+            die(errno, "Cannot bind TCP socket, error: %d\n", errno);
         }
 
         if (listen(tcp_server_socket, 16) < 0) {
-            die(errno, "Cannot listen to socket, error: %d\n", errno);
+            die(errno, "Cannot listen to TCP socket, error: %d\n", errno);
         }
 
+        // create and bind UDP
+        udp_server_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        if (udp_server_socket < 0) {
+            die(-1, "Error creating UDP socket\n");
+        }
+
+        if (bind(udp_server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
+            die(errno, "Cannot bind UDP socket, error: %d\n", errno);
+        }
+
+        nfds_t nfds = 2;
+        struct pollfd fds[nfds];
+        memset(fds, 0, sizeof(fds));
+        fds[0].fd = tcp_server_socket;
+        fds[0].events = POLLIN;
+        fds[1].fd = udp_server_socket;
+        fds[1].events = POLLIN;
+
         printf("Listening now on port %d\n", arguments.port);
-        while (1) {
-            struct sockaddr_in client_addr;
-            socklen_t sockaddr_len;
-            tcp_sock = accept(tcp_server_socket, (struct sockaddr *)&client_addr, &sockaddr_len);
-            char out[64];
-            int err = getnameinfo((struct sockaddr *)&client_addr, sockaddr_len, out, 64, NULL, 0, NI_NUMERICHOST);
-            if (err != 0) {
-                fprintf(stderr, "Error decoding: %d %d %d\n", err, errno, sockaddr_len);
-                fprintf(stderr, "Error: %s\n", gai_strerror(err));
-            } else {
-                printf("Sending bip to: %s\n", out);
-                fflush(stdout);
-            }
+        while (true) {
+            int ret = poll(fds, nfds, -1);
 
-            if (tcp_sock < 0) {
-                fprintf(stderr, "Cannot accept socket, error: %d\n", errno);
-            }
+            if (fds[0].revents & POLLIN) {
+                // someone contacted me over TCP
+                struct sockaddr_in client_addr;
+                memset(&client_addr, 0, sizeof(client_addr));
+                socklen_t sockaddr_len;
+                tcp_sock = accept(tcp_server_socket, (struct sockaddr *)&client_addr, &sockaddr_len);
+                char out[64];
+                int err = getnameinfo((struct sockaddr *)&client_addr, sockaddr_len, out, 64, NULL, 0, NI_NUMERICHOST);
+                if (err != 0) {
+                    fprintf(stderr, "Error decoding: %d %d %d\n", err, errno, sockaddr_len);
+                    fprintf(stderr, "Error: %s\n", gai_strerror(err));
+                } else {
+                    printf("Sending TCP bip to: %s\n", out);
+                    fflush(stdout);
+                }
 
-            if (send(tcp_sock, message, strlen(message), 0) < 0) {
-                fprintf(stderr, "Cannot send message to socket, error: %d\n", errno);
-                close(tcp_sock);
-            }
+                if (tcp_sock < 0) {
+                    fprintf(stderr, "Cannot accept TCP socket, error: %d\n", errno);
+                }
 
-            if (close(tcp_sock) < 0) {
-                fprintf(stderr, "Cannot close socket, error: %d\n", errno);
-                close(tcp_sock);
+                if (send(tcp_sock, message, strlen(message), 0) < 0) {
+                    fprintf(stderr, "Cannot send message to TCP socket, error: %d\n", errno);
+                    close(tcp_sock);
+                }
+
+                if (close(tcp_sock) < 0) {
+                    fprintf(stderr, "Cannot close TCP socket, error: %d\n", errno);
+                    close(tcp_sock);
+                }
+            } else if (fds[1].revents & POLLIN) {
+                // someone contacted me over UDP
+                char buffer[128];
+                struct sockaddr_in client_addr;
+                socklen_t sockaddr_len = sizeof(client_addr);
+                ssize_t count = recvfrom(udp_server_socket, buffer, sizeof(buffer), 0, (struct sockaddr *)&client_addr, &sockaddr_len);
+                buffer[count] = '\0';
+                if (count == -1) {
+                    fprintf(stderr, "Cannot read UDP message: %d\n", errno);
+                }
+                char out[64];
+                int err = getnameinfo((struct sockaddr *)&client_addr, sockaddr_len, out, 64, NULL, 0, NI_NUMERICHOST);
+                if (err != 0) {
+                    fprintf(stderr, "Error decoding: %d %d %d\n", err, errno, sockaddr_len);
+                    fprintf(stderr, "Error: %s\n", gai_strerror(err));
+                } else {
+                    printf("Received UDP message from %s\n", out);
+                    fflush(stdout);
+                }
+                if (sendto(udp_server_socket, message, strlen(message), 0, (struct sockaddr *)&client_addr, sockaddr_len) < 0) {
+                    fprintf(stderr, "Error sending: %d\n", errno);
+                }
             }
         }
     } else {
