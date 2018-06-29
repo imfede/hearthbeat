@@ -24,7 +24,7 @@ int udp_server_socket;
 pid_t fork_pid;
 bool stopping = false;
 
-const char *argp_program_version = "v0.1";
+const char *argp_program_version = "v1.0";
 const char *argp_program_bug_address = "federico.cergol@gmail.com ($ gpg --keyserver pgp.mit.edu --recv-key 0x2C831564)";
 const char doc[] = "A simple heartbeat program";
 const char arg_doc[] = "-p <port> --no-fork";
