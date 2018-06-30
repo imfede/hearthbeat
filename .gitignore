@@ -2,5 +2,7 @@
 *.out
 
 beat
+
 Makefile
 beat.service
+*.o

@@ -6,19 +6,30 @@ read -r -d '' makefile <<EOF
 beat:
 	gcc -O3 src/beat.c -o beat
 
+libs/cJSON.o:
+	gcc -c libs/cJSON.c -o libs/cJSON.o
+
+telegram: libs/cJSON.o
+	gcc -O3 libs/cJSON.o src/telegram.c -lcurl -o telegram
+
 clean:
 	rm beat
+	rm telegram
+	rm libs/cJSON.o
 
 install:
 	sudo mv beat /usr/local/bin/beat
 	sudo cp beat.service /usr/lib/systemd/system/beat.service
 	sudo mkdir -p /var/hearthbeat
 	sudo chown $user:$user /var/hearthbeat
+	sudo mkdir -p /etc/hearthbeat
+	sudo chown $user:$user /etc/hearthbeat
 
 uninstall:
 	sudo rm /usr/local/bin/beat
 	sudo rm /usr/lib/systemd/system/beat.service
 	sudo rm -rf /var/hearthbeat
+	sudo rm -rf /etc/hearthbeat
 EOF
 
 read -r -d '' unitfile <<EOF
