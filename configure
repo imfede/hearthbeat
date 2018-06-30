@@ -1,0 +1,41 @@
+#!/bin/bash
+
+user=`whoami`
+
+read -r -d '' makefile <<EOF
+beat:
+	gcc -O3 src/beat.c -o beat
+
+clean:
+	rm beat
+
+install:
+	sudo mv beat /usr/local/bin/beat
+	sudo cp beat.service /usr/lib/systemd/system/beat.service
+	sudo mkdir -p /var/hearthbeat
+	sudo chown $user:$user /var/hearthbeat
+
+uninstall:
+	sudo rm /usr/local/bin/beat
+	sudo rm /usr/lib/systemd/system/beat.service
+	sudo rm -rf /var/hearthbeat
+EOF
+
+read -r -d '' unitfile <<EOF
+[Unit]
+Description=Very simple heartbeat service
+
+[Service]
+User=$user
+Group=$user
+Type=forking
+PIDFile=/var/hearthbeat/pid
+ExecStart=/usr/local/bin/beat
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "$makefile" > Makefile
+echo "$unitfile" > beat.service

@@ -13,8 +13,9 @@ Its purpose is to implement a safe and lightweight endpoint for services like [u
 
 ## How to install
 
-It comes shipping with a very simple `Makefile` so you just have to do:
+It comes shipping with a very simple configuration so you just have to do:
 ```
+./configure
 make
 sudo make install
 ```
