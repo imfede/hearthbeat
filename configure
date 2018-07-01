@@ -30,7 +30,7 @@ clean:
 
 install:
 	sudo mv beat /usr/local/bin/beat
-	sudo cp beat.service /usr/lib/systemd/system/beat.service
+	sudo cp beat.service /etc/systemd/system/beat.service
 	sudo mkdir -p /var/hearthbeat
 	sudo chown $user:$user /var/hearthbeat
 	sudo mkdir -p /etc/hearthbeat
@@ -38,7 +38,7 @@ install:
 
 uninstall:
 	sudo rm /usr/local/bin/beat
-	sudo rm /usr/lib/systemd/system/beat.service
+	sudo rm /etc/systemd/system/beat.service
 	sudo rm -rf /var/hearthbeat
 	sudo rm -rf /etc/hearthbeat
 EOF
