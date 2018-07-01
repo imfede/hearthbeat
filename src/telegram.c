@@ -1,3 +1,4 @@
+#include "telegram.h"
 #include "../libs/cJSON.h"
 #include "argparse.h"
 #include <curl/curl.h>
@@ -7,11 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-char *token;
-int userid;
-const char *url = "https://api.telegram.org/bot%s/%s";
-
-void fill_url(const char *method, char *buffer) { sprintf(buffer, url, token, method); }
+void fill_url(const char *method, char *buffer) { sprintf(buffer, telegram_url, telegram_token, method); }
 
 struct string {
     char *ptr;
@@ -47,9 +44,14 @@ size_t write_to_string(void *ptr, size_t size, size_t nmemb, struct string *s) {
     return size * nmemb;
 }
 
-cJSON *call_telegram_api(const char *token, const char *method, cJSON *data) {
+cJSON *call_telegram_api(const char *telegram_token, const char *method, cJSON *data) {
     char buffer[1024];
     fill_url(method, buffer);
+
+    if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
+        fprintf(stderr, "Error initialising libcurl\n");
+        exit(-1);
+    }
 
     CURL *handle = curl_easy_init();
     if (handle == NULL) {
@@ -60,7 +62,6 @@ cJSON *call_telegram_api(const char *token, const char *method, cJSON *data) {
     char *jsondata = NULL;
     struct curl_slist *headers = NULL;
 
-    // curl_easy_setopt(handle, CURLOPT_VERBOSE, 1);
     curl_easy_setopt(handle, CURLOPT_URL, buffer);
     if (data != NULL) {
         curl_easy_setopt(handle, CURLOPT_POST, 1);
@@ -89,13 +90,13 @@ cJSON *call_telegram_api(const char *token, const char *method, cJSON *data) {
     }
 
     curl_easy_cleanup(handle);
+    curl_global_cleanup();
 
-    // printf("Reponse: %s\n", out.ptr);
     return cJSON_Parse(out.ptr);
 }
 
-bool validate_token(const char *token) {
-    cJSON *response = call_telegram_api(token, "getMe", NULL);
+bool validate_token(const char *telegram_token) {
+    cJSON *response = call_telegram_api(telegram_token, "getMe", NULL);
 
     cJSON *ok = cJSON_GetObjectItemCaseSensitive(response, "ok");
     bool valid = false;
@@ -107,11 +108,11 @@ bool validate_token(const char *token) {
     return valid;
 }
 
-bool send_message(const char *token, const int userid, const char *message) {
+bool send_message(const char *telegram_token, const int telegram_userid, const char *message) {
     cJSON *data = cJSON_CreateObject();
-    cJSON_AddNumberToObject(data, "chat_id", userid);
+    cJSON_AddNumberToObject(data, "chat_id", telegram_userid);
     cJSON_AddStringToObject(data, "text", message);
-    cJSON *response = call_telegram_api(token, "sendMessage", data);
+    cJSON *response = call_telegram_api(telegram_token, "sendMessage", data);
     cJSON_Delete(data);
 
     bool ret = false;
@@ -125,44 +126,27 @@ bool send_message(const char *token, const int userid, const char *message) {
 }
 
 void _read_user_id(char *value) {
-    userid = atoi(value);
-    printf("Set userid: %d\n", userid);
+    telegram_userid = atoi(value);
+    printf("Set telegram_userid: %d\n", telegram_userid);
 }
 
 void _read_token(char *value) {
-    token = malloc(strlen(value));
-    memset(token, '\0', strlen(value));
-    strcpy(token, value);
-    printf("Set token: %s\n", token);
+    telegram_token = malloc(strlen(value));
+    memset(telegram_token, '\0', strlen(value));
+    strcpy(telegram_token, value);
+    printf("Set telegram_token: %s\n", telegram_token);
 }
 
-int read_properties() {
+int telegram_init() {
     argparse_register_argument("user_id", &_read_user_id);
     argparse_register_argument("token", &_read_token);
-    argparse_read_properties("/etc/hearthbeat/conf");
+    argparse_read_properties(telegram_conf);
 
-    if (userid != 0 && token != NULL) {
+    if (telegram_userid != 0 && telegram_token != NULL && validate_token(telegram_token)) {
         return 0;
     } else {
         return -1;
     }
 }
 
-int main() {
-    if (read_properties() != 0) {
-        fprintf(stderr, "Cannot read properties\n");
-        exit(-1);
-    }
-
-    if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
-        fprintf(stderr, "Error initialising libcurl\n");
-        exit(-1);
-    }
-
-    const char *message = "message";
-    if (validate_token(token)) {
-        send_message(token, userid, message);
-    }
-
-    curl_global_cleanup();
-}
+void telegram_send_message(char *message) { send_message(telegram_token, telegram_userid, message); }

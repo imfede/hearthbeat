@@ -4,9 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-int callbacks_length = 0;
-struct callback *callbacks = NULL;
-
 void argparse_register_argument(char *key, args_callback_t function) {
     callbacks_length += 1;
     callbacks = realloc(callbacks, callbacks_length * sizeof(struct callback));
@@ -48,7 +45,8 @@ void argparse_read_properties(const char *path) {
                 strncpy(value, eq + 1, nl - eq - 1);
 
                 struct callback *cb = get_callback(key);
-                cb->callback(value);
+                if (cb != NULL)
+                    cb->callback(value);
             }
         }
     }

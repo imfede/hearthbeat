@@ -3,19 +3,30 @@
 user=`whoami`
 
 read -r -d '' makefile <<EOF
+all: beat monitor
+
 beat:
 	gcc -O3 src/beat.c -o beat
 
 libs/cJSON.o:
 	gcc -c libs/cJSON.c -o libs/cJSON.o
 
-telegram: libs/cJSON.o
-	gcc -O3 libs/cJSON.o src/telegram.c -lcurl -o telegram
+src/argparse.o:
+	gcc -c src/argparse.c -o src/argparse.o
+
+src/telegram.o:
+	gcc -c src/telegram.c -o src/telegram.o
+
+monitor: libs/cJSON.o src/telegram.o src/argparse.o
+	gcc -O3 libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c -lcurl -o monitor
 
 clean:
-	rm beat
-	rm telegram
-	rm libs/cJSON.o
+	-@rm beat 2>/dev/null
+	-@rm monitor 2>/dev/null
+	-@rm libs/*.o 2>/dev/null
+	-@rm src/*.o 2>/dev/null
+	-@rm beat.service 2>/dev/null
+	-@rm Makefile 2>/dev/null
 
 install:
 	sudo mv beat /usr/local/bin/beat

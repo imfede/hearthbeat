@@ -12,8 +12,8 @@ struct callback {
 };
 
 /* arraylist */
-struct callback *callbacks;
-int callbacks_length;
+static struct callback *callbacks;
+static int callbacks_length;
 
 /* call this function to register an argument in the arraylist. key wll be copied */
 void argparse_register_argument(char *key, args_callback_t function);
