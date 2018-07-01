@@ -1,4 +1,5 @@
 #include "../libs/cJSON.h"
+#include "argparse.h"
 #include <curl/curl.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -123,39 +124,23 @@ bool send_message(const char *token, const int userid, const char *message) {
     return ret;
 }
 
-int read_properties() {
-    const char *path = "/etc/hearthbeat/conf";
-    FILE *f = fopen(path, "r");
-    if (f == NULL) {
-        fprintf(stderr, "Cannot open config file, error: %d\n", errno);
-        return -1;
-    }
+void _read_user_id(char *value) {
+    userid = atoi(value);
+    printf("Set userid: %d\n", userid);
+}
 
-    char line[256];
-    while (fgets(line, sizeof(line), f) != NULL) {
-        if (line[0] != '\n' && line[0] != '#') {
-            char key[256];
-            char value[256];
-            memset(key, '\0', sizeof(key));
-            memset(value, '\0', sizeof(value));
-            char *eq = strchr(line, '=');
-            char *nl = strchr(line, '\n');
-            if (eq != NULL && nl != NULL) {
-                strncpy(key, line, eq - line);
-                strncpy(value, eq + 1, nl - eq - 1);
-                if (strcmp(key, "user_id") == 0) {
-                    userid = atoi(value);
-                    printf("Set userid: %d\n", userid);
-                } else if (strcmp(key, "token") == 0 && token == NULL) {
-                    token = malloc(nl - eq + 1);
-                    memset(token, '\0', sizeof(token));
-                    strncpy(token, value, nl - eq);
-                    printf("Set token: %s\n", token);
-                }
-            }
-        }
-    }
-    fclose(f);
+void _read_token(char *value) {
+    token = malloc(strlen(value));
+    memset(token, '\0', strlen(value));
+    strcpy(token, value);
+    printf("Set token: %s\n", token);
+}
+
+int read_properties() {
+    argparse_register_argument("user_id", &_read_user_id);
+    argparse_register_argument("token", &_read_token);
+    argparse_read_properties("/etc/hearthbeat/conf");
+
     if (userid != 0 && token != NULL) {
         return 0;
     } else {

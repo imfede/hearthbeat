@@ -13,7 +13,7 @@ Its purpose is to implement a safe and lightweight endpoint for services like [u
 
 ## How to install
 
-It comes shipping with a very simple configuration so you just have to do:
+First, make sure you have `libcurl` installed. It comes shipping with a very simple configuration so you just have to do:
 ```
 ./configure
 make
