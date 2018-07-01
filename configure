@@ -18,7 +18,7 @@ src/telegram.o:
 	gcc -c src/telegram.c -o src/telegram.o
 
 monitor: libs/cJSON.o src/telegram.o src/argparse.o
-	gcc -O3 libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c -lcurl -o monitor
+	gcc libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c -lcurl -o monitor
 
 clean:
 	-@rm beat 2>/dev/null

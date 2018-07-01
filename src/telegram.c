@@ -125,21 +125,9 @@ bool send_message(const char *telegram_token, const int telegram_userid, const c
     return ret;
 }
 
-void _read_user_id(char *value) {
-    telegram_userid = atoi(value);
-    printf("Set telegram_userid: %d\n", telegram_userid);
-}
-
-void _read_token(char *value) {
-    telegram_token = malloc(strlen(value));
-    memset(telegram_token, '\0', strlen(value));
-    strcpy(telegram_token, value);
-    printf("Set telegram_token: %s\n", telegram_token);
-}
-
 int telegram_init() {
-    argparse_register_argument("user_id", &_read_user_id);
-    argparse_register_argument("token", &_read_token);
+    argparse_register_argument_int("user_id", &telegram_userid);
+    argparse_register_argument_str("token", &telegram_token);
     argparse_read_properties(telegram_conf);
 
     if (telegram_userid != 0 && telegram_token != NULL && validate_token(telegram_token)) {
