@@ -108,7 +108,9 @@ void argparse_read_properties(const char *path) {
     }
     fclose(f);
     free(callbacks);
+    callbacks = NULL;
     callbacks_length = 0;
     free(registered_pointers);
+    registered_pointers = NULL;
     registered_pointers_length = 0;
 }
