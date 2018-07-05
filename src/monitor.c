@@ -1,4 +1,5 @@
 #include "telegram.h"
+#include "argparse.h"
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
@@ -15,10 +16,23 @@
 #include <sys/time.h>
 #include <pthread.h>
 
+char *configfile = "/etc/hearthbeat/monitor";
+int poll_interval;
+int err_interval;
+char *host;
+char *port;
+char *name;
+
 int udp_server_socket = 0;
 struct sockaddr_in target_addr = {0};
 char *message = "bip?";
-int interval = 1;
+
+bool isonline = false;
+struct event *poll_ev;
+struct event *err_ev;
+struct event_base *base;
+struct timeval poll_tv;
+struct timeval err_tv;
 
 void die(int code, char *message, ...) {
     va_list fmtargs;
@@ -27,19 +41,32 @@ void die(int code, char *message, ...) {
 }
 
 void init() {
+    argparse_register_argument_str("host", &host);
+    argparse_register_argument_str("port", &port);
+    argparse_register_argument_str("name", &name);
+    argparse_register_argument_int("poll_interval", &poll_interval);
+    argparse_register_argument_int("err_interval", &err_interval);
+    argparse_read_properties(configfile);
+
     struct addrinfo hints = {0};
     struct addrinfo *info;
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
 
-    int result = getaddrinfo("home.imfede.net", "48807", &hints, &info);
+    int result = getaddrinfo(host, port, &hints, &info);
     if (result != 0) {
-        die(result, "%d: %s\n", result, gai_strerror(result));
+        die(result, "Error %d resolving host: %s\n", result, gai_strerror(result));
     }
 
     memcpy(&target_addr, info->ai_addr, sizeof(target_addr));
 
     freeaddrinfo(info);
+
+    poll_tv.tv_sec = poll_interval;
+    poll_tv.tv_usec = 0;
+
+    err_tv.tv_sec = err_interval;
+    err_tv.tv_usec = 0;
 }
 
 void send_bip() {
@@ -50,8 +77,30 @@ void send_bip() {
     }
 }
 
-void handle_event(int fd, short event, void *arg) {
+void handle_poll_event(int fd, short event, void *arg) {
     send_bip();
+}
+
+void handle_err_event(int fd, short event, void *arg) {
+    if (isonline) {
+        isonline = false;
+        printf("Host [%s] is down!\n", name);
+        char buffer[256];
+        snprintf(buffer, 256, "Host [%s] is down!", name);
+        telegram_send_message(buffer);
+    }
+}
+
+void reset_error_timer() {
+    if(!isonline) {
+        printf("Host [%s] is up!\n", name);
+        char buffer[256];
+        snprintf(buffer, 256, "Host [%s] is up!", name);
+        telegram_send_message(buffer);
+    }
+    isonline = true;
+    evtimer_del(err_ev);
+    evtimer_add(err_ev, &err_tv);
 }
 
 void *handle_connection_thread(void *ign) {
@@ -73,6 +122,7 @@ void *handle_connection_thread(void *ign) {
             if (count == -1) {
                 fprintf(stderr, "Cannot read UDP message: %d\n", errno);
             } else {
+                reset_error_timer();
                 printf("Received: %s\n", buffer);
             }
         }
@@ -81,16 +131,13 @@ void *handle_connection_thread(void *ign) {
 
 int main() {
     init();
+    telegram_init();
 
-    struct event_base *base = event_base_new();
-    struct event *ev;
-    struct timeval tv;
+    base = event_base_new();
 
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
+    poll_ev = event_new(base, -1, EV_PERSIST, &handle_poll_event, NULL);
 
-    ev = event_new(base, -1, EV_PERSIST, &handle_event, NULL);
-    evtimer_add(ev, &tv);
+    err_ev = event_new(base, -1, EV_PERSIST, &handle_err_event, NULL);
 
     struct sockaddr_in server_address;
     memset(&server_address, 0, sizeof(server_address));
@@ -113,5 +160,7 @@ int main() {
         die(thread_status, "Error threading: %d\n", thread_status);
     }
 
+    evtimer_add(poll_ev, &poll_tv);
+    evtimer_add(err_ev, &err_tv);
     event_base_dispatch(base);
 }
