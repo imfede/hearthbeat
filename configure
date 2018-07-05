@@ -1,6 +1,7 @@
 #!/bin/bash
 
 user=`whoami`
+group=`groups | cut -d' ' -f1`
 
 read -r -d '' makefile <<EOF
 all: beat monitor
@@ -30,15 +31,19 @@ clean:
 
 install:
 	sudo mv beat /usr/local/bin/beat
-	sudo cp beat.service /etc/systemd/system/beat.service
+	sudo mv monitor /usr/local/bin/monitor
+	sudo mv beat.service /etc/systemd/system/beat.service
+	sudo mv monitor.service /etc/systemd/system/monitor.service
 	sudo mkdir -p /var/hearthbeat
-	sudo chown $user:$user /var/hearthbeat
+	sudo chown $user:$group /var/hearthbeat
 	sudo mkdir -p /etc/hearthbeat
-	sudo chown $user:$user /etc/hearthbeat
+	sudo chown $user:$group /etc/hearthbeat
 
 uninstall:
 	sudo rm /usr/local/bin/beat
+	sudo rm /usr/local/bin/monitor
 	sudo rm /etc/systemd/system/beat.service
+	sudo rm /etc/systemd/system/monitor.service
 	sudo rm -rf /var/hearthbeat
 	sudo rm -rf /etc/hearthbeat
 EOF
@@ -59,5 +64,21 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 
+read -r -d '' monitorunitfile <<EOF
+[Unit]
+Description=Very simple monitor service
+
+[Service]
+User=$user
+Group=$user
+Type=simple
+ExecStart=/usr/local/bin/monitor
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 echo "$makefile" > Makefile
 echo "$unitfile" > beat.service
+echo "$monitorunitfile" > monitor.service
