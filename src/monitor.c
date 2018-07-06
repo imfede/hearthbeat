@@ -40,7 +40,17 @@ void die(int code, char *message, ...) {
     exit(code);
 }
 
+void handle_signal(int sig) {
+    char buffer[256];
+    snprintf(buffer, 256, "Stopping monitor on %s", myname);
+    telegram_send_message(buffer);
+    exit(0);
+}
+
 void init() {
+    signal(SIGTERM, &handle_signal);
+    signal(SIGINT, &handle_signal);
+
     argparse_register_argument_str("host", &host);
     argparse_register_argument_str("port", &port);
     argparse_register_argument_str("name", &name);
@@ -160,5 +170,9 @@ int main() {
     evtimer_add(poll_ev, &poll_tv);
     evtimer_add(err_ev, &err_tv);
     event_add(listen_ev, NULL);
+
+    char buffer[256];
+    snprintf(buffer, 256, "Starting monitor on %s", myname);
+    telegram_send_message(buffer);
     event_base_dispatch(base);
 }
