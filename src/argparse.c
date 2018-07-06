@@ -4,6 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+void free_list_cell(struct list_cell *list) {
+    while(list != NULL) {
+        struct list_cell *it = list->next;
+        free(list);
+        list = it;
+    }
+}
+
 void argparse_register_argument(char *key, args_callback_t function) {
     callbacks_length += 1;
     callbacks = realloc(callbacks, callbacks_length * sizeof(struct callback));
@@ -55,7 +63,18 @@ void generic_callback(char *key, char *value) {
             *((char **)pointer->ptr) = malloc(strlen(value) + 1);
             strcpy(*((char **)pointer->ptr), value);
             break;
-        case LST:
+        case LST: ;
+            struct list_cell *list = *((struct list_cell **)pointer->ptr);
+            if(list == NULL) {
+                list = calloc(sizeof(struct list_cell), 1);
+                *((struct list_cell **)pointer->ptr) = list;
+            } else {
+                while(list->next != NULL) { list = list->next; }
+                list->next = calloc(sizeof(struct list_cell), 1);
+                list = list->next;
+            }
+            strcpy(list->value, value);
+            break;
         default:
             fprintf(stderr, "Not yet implemented!\n");
         }
@@ -77,8 +96,18 @@ void register_pointer(char *key, enum type t, void *ptr) {
 }
 
 void argparse_register_argument_int(char *key, int *ptr) { register_pointer(key, INT, (void *)ptr); }
-
 void argparse_register_argument_str(char *key, char **ptr) { register_pointer(key, STR, (void *)ptr); }
+void argparse_register_argument_strlst(char *key, struct list_cell **ptr) { register_pointer(key, LST, (void *)ptr); }
+
+void argparse_register_argument_int_def(char *key, int *ptr, int def) {
+    *ptr = def;
+    argparse_register_argument_int(key, ptr);
+}
+
+void argparse_register_argument_str_def(char *key, char **ptr, char *def){
+    *ptr = def;
+    argparse_register_argument_str(key, ptr);
+}
 
 void argparse_read_properties(const char *path) {
     FILE *f = fopen(path, "r");

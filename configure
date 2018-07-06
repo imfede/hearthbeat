@@ -21,7 +21,17 @@ src/telegram.o:
 monitor: libs/cJSON.o src/telegram.o src/argparse.o
 	gcc -O3 libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c -lcurl -levent -o monitor
 
-clean:
+test/argparse:
+	gcc -g -c src/argparse.c -o src/argparse.o
+	gcc -g src/argparse.o test/argparse.c -o test/argparse
+
+tests: test/argparse
+
+cleantests:
+	-@rm src/argparse.o 2>/dev/null
+	-@rm test/argparse 2>/dev/null
+
+clean: cleantests
 	-@rm beat 2>/dev/null
 	-@rm monitor 2>/dev/null
 	-@rm libs/*.o 2>/dev/null
