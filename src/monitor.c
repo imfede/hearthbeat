@@ -14,7 +14,6 @@
 #include <unistd.h>
 #include <event.h>
 #include <sys/time.h>
-#include <pthread.h>
 
 char *configfile = "/etc/hearthbeat/monitor";
 int poll_interval;
@@ -30,6 +29,7 @@ char *message = "bip?";
 bool isonline = false;
 struct event *poll_ev;
 struct event *err_ev;
+struct event *listen_ev;
 struct event_base *base;
 struct timeval poll_tv;
 struct timeval err_tv;
@@ -67,6 +67,21 @@ void init() {
 
     err_tv.tv_sec = err_interval;
     err_tv.tv_usec = 0;
+
+    struct sockaddr_in server_address;
+    memset(&server_address, 0, sizeof(server_address));
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    // create and bind UDP
+    udp_server_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (udp_server_socket < 0) {
+        die(-1, "Error creating UDP socket\n");
+    }
+
+    if (bind(udp_server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
+        die(errno, "Cannot bind UDP socket, error: %d\n", errno);
+    }
 }
 
 void send_bip() {
@@ -103,30 +118,22 @@ void reset_error_timer() {
     evtimer_add(err_ev, &err_tv);
 }
 
-void *handle_connection_thread(void *ign) {
-    nfds_t nfds = 1;
-    struct pollfd fds[nfds];
-    memset(fds, 0, sizeof(fds));
-    fds[0].fd = udp_server_socket;
-    fds[0].events = POLLIN;
-
-    while (true) {
-        int ret = poll(fds, nfds, -1);
-
-        if (fds[0].revents & POLLIN) {
-            char buffer[128];
-            struct sockaddr_in client_addr;
-            socklen_t sockaddr_len = sizeof(client_addr);
-            ssize_t count = recvfrom(udp_server_socket, buffer, sizeof(buffer), 0, (struct sockaddr *)&client_addr, &sockaddr_len);
-            buffer[count] = '\0';
-            if (count == -1) {
-                fprintf(stderr, "Cannot read UDP message: %d\n", errno);
-            } else {
-                reset_error_timer();
-                printf("Received: %s\n", buffer);
-            }
-        }
+void handle_answer(int fd) {
+    char buffer[128];
+    struct sockaddr_in client_addr;
+    socklen_t sockaddr_len = sizeof(client_addr);
+    ssize_t count = recvfrom(fd, buffer, sizeof(buffer), 0, (struct sockaddr *)&client_addr, &sockaddr_len);
+    buffer[count] = '\0';
+    if (count == -1) {
+        fprintf(stderr, "Cannot read UDP message: %d\n", errno);
+    } else {
+        reset_error_timer();
+        printf("Received: %s\n", buffer);
     }
+}
+
+void handle_connection(int fd, short event, void *arg) {
+    handle_answer(fd);
 }
 
 int main() {
@@ -136,31 +143,11 @@ int main() {
     base = event_base_new();
 
     poll_ev = event_new(base, -1, EV_PERSIST, &handle_poll_event, NULL);
-
     err_ev = event_new(base, -1, EV_PERSIST, &handle_err_event, NULL);
-
-    struct sockaddr_in server_address;
-    memset(&server_address, 0, sizeof(server_address));
-    server_address.sin_family = AF_INET;
-    server_address.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    // create and bind UDP
-    udp_server_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (udp_server_socket < 0) {
-        die(-1, "Error creating UDP socket\n");
-    }
-
-    if (bind(udp_server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
-        die(errno, "Cannot bind UDP socket, error: %d\n", errno);
-    }
-
-    pthread_t listener;
-    int thread_status = pthread_create(&listener, NULL, &handle_connection_thread, NULL);
-    if(thread_status != 0) {
-        die(thread_status, "Error threading: %d\n", thread_status);
-    }
+    listen_ev = event_new(base, udp_server_socket, EV_READ | EV_PERSIST, &handle_connection, NULL);
 
     evtimer_add(poll_ev, &poll_tv);
     evtimer_add(err_ev, &err_tv);
+    event_add(listen_ev, NULL);
     event_base_dispatch(base);
 }
