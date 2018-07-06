@@ -21,6 +21,7 @@ int err_interval;
 char *host;
 char *port;
 char *name;
+char *myname;
 
 int udp_server_socket = 0;
 char *message = "bip?";
@@ -43,6 +44,7 @@ void init() {
     argparse_register_argument_str("host", &host);
     argparse_register_argument_str("port", &port);
     argparse_register_argument_str("name", &name);
+    argparse_register_argument_str_def("myname", &myname, "myself");
     argparse_register_argument_int("poll_interval", &poll_interval);
     argparse_register_argument_int("err_interval", &err_interval);
     argparse_read_properties(configfile);
@@ -108,18 +110,18 @@ void handle_poll_event(int fd, short event, void *arg) {
 void handle_err_event(int fd, short event, void *arg) {
     if (isonline) {
         isonline = false;
-        printf("Host [%s] is down!\n", name);
+        printf("%s: Host %s is down!\n", myname, name);
         char buffer[256];
-        snprintf(buffer, 256, "Host [%s] is down!", name);
+        snprintf(buffer, 256, "%s: Host %s is down!", myname, name);
         telegram_send_message(buffer);
     }
 }
 
 void reset_error_timer() {
     if(!isonline) {
-        printf("Host [%s] is up!\n", name);
+        printf("%s: Host %s is up!\n", myname, name);
         char buffer[256];
-        snprintf(buffer, 256, "Host [%s] is up!", name);
+        snprintf(buffer, 256, "%s: Host %s is up!", myname, name);
         telegram_send_message(buffer);
     }
     isonline = true;
