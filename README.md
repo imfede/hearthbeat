@@ -54,7 +54,7 @@ port=48807
 poll_interval=1
 
 # timeout (in seconds) after which a host is considered down
-# every response from the target reset this timer
+# every response from the target will reset this timer
 err_interval=15
 ```
 
