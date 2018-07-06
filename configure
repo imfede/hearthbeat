@@ -39,15 +39,21 @@ clean: cleantests
 	-@rm beat.service 2>/dev/null
 	-@rm Makefile 2>/dev/null
 
-install:
-	sudo mv beat /usr/local/bin/beat
-	sudo mv monitor /usr/local/bin/monitor
-	sudo mv beat.service /etc/systemd/system/beat.service
-	sudo mv monitor.service /etc/systemd/system/monitor.service
+install_dirs:
 	sudo mkdir -p /var/hearthbeat
 	sudo chown $user:$group /var/hearthbeat
 	sudo mkdir -p /etc/hearthbeat
 	sudo chown $user:$group /etc/hearthbeat
+
+install_beat: install_dirs
+	sudo mv beat /usr/local/bin/beat
+	sudo mv beat.service /etc/systemd/system/beat.service
+
+install_monitor:
+	sudo mv monitor /usr/local/bin/monitor
+	sudo mv monitor.service /etc/systemd/system/monitor.service
+
+install: install_beat install_monitor
 
 uninstall:
 	sudo rm /usr/local/bin/beat
