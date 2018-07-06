@@ -5,5 +5,5 @@ beat
 monitor
 
 Makefile
-beat.service
+*.service
 *.o

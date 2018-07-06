@@ -23,7 +23,6 @@ char *port;
 char *name;
 
 int udp_server_socket = 0;
-struct sockaddr_in target_addr = {0};
 char *message = "bip?";
 
 bool isonline = false;
@@ -48,20 +47,6 @@ void init() {
     argparse_register_argument_int("err_interval", &err_interval);
     argparse_read_properties(configfile);
 
-    struct addrinfo hints = {0};
-    struct addrinfo *info;
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_DGRAM;
-
-    int result = getaddrinfo(host, port, &hints, &info);
-    if (result != 0) {
-        die(result, "Error %d resolving host: %s\n", result, gai_strerror(result));
-    }
-
-    memcpy(&target_addr, info->ai_addr, sizeof(target_addr));
-
-    freeaddrinfo(info);
-
     poll_tv.tv_sec = poll_interval;
     poll_tv.tv_usec = 0;
 
@@ -84,8 +69,32 @@ void init() {
     }
 }
 
+int lookup_target(char *host, char *port, struct sockaddr_in *target) {
+    struct addrinfo hints = {0};
+    struct addrinfo *info;
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+
+    int result = getaddrinfo(host, port, &hints, &info);
+    if (result != 0) {
+        fprintf(stderr, "Error %d resolving host: %s\n", result, gai_strerror(result));
+        return -1;
+    }
+
+    memcpy(target, info->ai_addr, sizeof(*target));
+
+    freeaddrinfo(info);
+    return 0;
+}
+
 void send_bip() {
-    if (sendto(udp_server_socket, message, strlen(message), 0, (struct sockaddr *)&target_addr, sizeof(target_addr)) < 0) {
+    struct sockaddr_in target;
+    if( lookup_target(host, port, &target) != 0 ) {
+        fprintf(stderr, "Lookup error!\n");
+        return;
+    }
+
+    if (sendto(udp_server_socket, message, strlen(message), 0, (struct sockaddr *)&target, sizeof(target)) < 0) {
         fprintf(stderr, "Error sending: %d\n", errno);
     } else {
         printf("Sent: %s\n", message);
