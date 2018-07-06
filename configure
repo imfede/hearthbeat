@@ -37,6 +37,7 @@ clean: cleantests
 	-@rm libs/*.o 2>/dev/null
 	-@rm src/*.o 2>/dev/null
 	-@rm beat.service 2>/dev/null
+	-@rm monitor.service 2>/dev/null
 	-@rm Makefile 2>/dev/null
 
 install_dirs:
