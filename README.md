@@ -60,7 +60,7 @@ err_interval=15
 
 ## How to install
 
-First, make sure you have `libcurl` and `libevent` installed. If you don't know where to look to do that this tool probably isn't for you. 
+First, make sure you have `libcurl`, `libevent`, and `argp` installed. If you don't know where to look to do that this tool probably isn't for you. 
 
 Hearthbeat comes shipping with a very simple configuration so you just have to do:
 ```
