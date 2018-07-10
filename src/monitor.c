@@ -1,4 +1,5 @@
 #include "argparse.h"
+#include "logtime.h"
 #include "telegram.h"
 #include <arpa/inet.h>
 #include <errno.h>
@@ -109,6 +110,7 @@ void send_bip() {
     if (sendto(udp_server_socket, message, strlen(message), 0, (struct sockaddr *)&target, sizeof(target)) < 0) {
         fprintf(stderr, "Error sending: %d\n", errno);
     } else {
+        logtime_set_start();
         printf("Sent: %s\n", message);
     }
 }
@@ -147,6 +149,7 @@ void handle_answer(int fd) {
         fprintf(stderr, "Cannot read UDP message: %d\n", errno);
     } else {
         reset_error_timer();
+        logtime_set_record();
         printf("Received: %s\n", buffer);
     }
 }

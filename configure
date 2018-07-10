@@ -21,8 +21,11 @@ src/argparse.o:
 src/telegram.o:
 	gcc -O3 -c src/telegram.c -o src/telegram.o
 
-monitor: libs/cJSON.o src/telegram.o src/argparse.o
-	gcc -O3 libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c -lcurl -levent -o monitor
+src/logtime.o:
+	gcc -O3 -c src/logtime.c -o src/logtime.o
+
+monitor: libs/cJSON.o src/telegram.o src/argparse.o src/logtime.o
+	gcc -O3 libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c src/logtime.o -lcurl -levent -o monitor
 
 test/argparse:
 	gcc -g -c src/argparse.c -o src/argparse.o
