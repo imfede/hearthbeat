@@ -1,4 +1,3 @@
-
 #ifndef _ARGPARSE
 #define _ARGPARSE
 
@@ -23,7 +22,7 @@ typedef struct list_cell {
     struct list_cell *next;
     char value[256];
 } list_cell;
-void free_list_cell(struct list_cell* list);
+void free_list_cell(struct list_cell *list);
 
 void argparse_register_argument_int(char *key, int *ptr);
 void argparse_register_argument_int_def(char *key, int *ptr, int def);

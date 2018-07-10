@@ -5,7 +5,7 @@
 #include <string.h>
 
 void free_list_cell(struct list_cell *list) {
-    while(list != NULL) {
+    while (list != NULL) {
         struct list_cell *it = list->next;
         free(list);
         list = it;
@@ -63,13 +63,15 @@ void generic_callback(char *key, char *value) {
             *((char **)pointer->ptr) = malloc(strlen(value) + 1);
             strcpy(*((char **)pointer->ptr), value);
             break;
-        case LST: ;
+        case LST:;
             struct list_cell *list = *((struct list_cell **)pointer->ptr);
-            if(list == NULL) {
+            if (list == NULL) {
                 list = calloc(sizeof(struct list_cell), 1);
                 *((struct list_cell **)pointer->ptr) = list;
             } else {
-                while(list->next != NULL) { list = list->next; }
+                while (list->next != NULL) {
+                    list = list->next;
+                }
                 list->next = calloc(sizeof(struct list_cell), 1);
                 list = list->next;
             }
@@ -104,7 +106,7 @@ void argparse_register_argument_int_def(char *key, int *ptr, int def) {
     argparse_register_argument_int(key, ptr);
 }
 
-void argparse_register_argument_str_def(char *key, char **ptr, char *def){
+void argparse_register_argument_str_def(char *key, char **ptr, char *def) {
     *ptr = def;
     argparse_register_argument_str(key, ptr);
 }

@@ -1,7 +1,8 @@
-#include "telegram.h"
 #include "argparse.h"
+#include "telegram.h"
 #include <arpa/inet.h>
 #include <errno.h>
+#include <event.h>
 #include <netdb.h>
 #include <poll.h>
 #include <signal.h>
@@ -10,10 +11,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <event.h>
-#include <sys/time.h>
 
 char *configfile = "/etc/hearthbeat/monitor";
 int poll_interval;
@@ -101,7 +101,7 @@ int lookup_target(char *host, char *port, struct sockaddr_in *target) {
 
 void send_bip() {
     struct sockaddr_in target;
-    if( lookup_target(host, port, &target) != 0 ) {
+    if (lookup_target(host, port, &target) != 0) {
         fprintf(stderr, "Lookup error!\n");
         return;
     }
@@ -113,9 +113,7 @@ void send_bip() {
     }
 }
 
-void handle_poll_event(int fd, short event, void *arg) {
-    send_bip();
-}
+void handle_poll_event(int fd, short event, void *arg) { send_bip(); }
 
 void handle_err_event(int fd, short event, void *arg) {
     if (isonline) {
@@ -128,7 +126,7 @@ void handle_err_event(int fd, short event, void *arg) {
 }
 
 void reset_error_timer() {
-    if(!isonline) {
+    if (!isonline) {
         printf("%s: Host %s is up!\n", myname, name);
         char buffer[256];
         snprintf(buffer, 256, "%s: Host %s is up!", myname, name);
@@ -153,9 +151,7 @@ void handle_answer(int fd) {
     }
 }
 
-void handle_connection(int fd, short event, void *arg) {
-    handle_answer(fd);
-}
+void handle_connection(int fd, short event, void *arg) { handle_answer(fd); }
 
 int main() {
     init();

@@ -12,7 +12,7 @@ int test_list() {
     struct list_cell *it = list;
 
     int i = 0;
-    while(it != NULL) {
+    while (it != NULL) {
         printf("list element %d: %s\n", i, it->value);
         it = it->next;
         i += 1;
