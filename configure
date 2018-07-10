@@ -4,13 +4,13 @@ user=`whoami`
 group=`groups | cut -d' ' -f1`
 
 read -r -d '' makefile <<EOF
-`test $(uname) = "Darwin" && echo -n 'export C_INCLUDE_PATH="/opt/local/include"'`
-`test $(uname) = "Darwin" && echo -n 'export LIBRARY_PATH="/opt/local/lib"'`
+`test $(uname) = "Darwin" && echo -n 'export C_INCLUDE_PATH=/opt/local/include'`
+`test $(uname) = "Darwin" && echo -n 'export LIBRARY_PATH=/opt/local/lib'`
 
 all: beat monitor
 
 beat:
-	gcc -O3 src/beat.c -largp -o beat
+	gcc -O3 src/beat.c `test $(uname) = "Darwin" && echo -n '-largp'` -o beat
 
 libs/cJSON.o:
 	gcc -O3 -c libs/cJSON.c -o libs/cJSON.o
