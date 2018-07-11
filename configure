@@ -50,7 +50,7 @@ clean: cleantests
 	-@rm beat.service 2>/dev/null
 	-@rm monitor.service 2>/dev/null
 	-@rm Makefile 2>/dev/null
-	-@rm *.dSYM 2>/dev/null
+	-@rm -rf *.dSYM 2>/dev/null
 
 install_dirs:
 	sudo mkdir -p /var/hearthbeat
