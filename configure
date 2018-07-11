@@ -17,6 +17,9 @@ beat:
 libs/cJSON.o:
 	gcc $GCC_FLAGS -c libs/cJSON.c -o libs/cJSON.o
 
+libs/sqlite3.o:
+	gcc $GCC_FLAGS -c libs/sqlite3.c -o libs/sqlite3.o
+
 src/argparse.o:
 	gcc $GCC_FLAGS -c src/argparse.c -o src/argparse.o
 
@@ -26,8 +29,8 @@ src/telegram.o:
 src/logtime.o:
 	gcc $GCC_FLAGS -c src/logtime.c -o src/logtime.o
 
-monitor: libs/cJSON.o src/telegram.o src/argparse.o src/logtime.o
-	gcc $GCC_FLAGS libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c src/logtime.o -lcurl -levent -o monitor
+monitor: libs/cJSON.o src/telegram.o src/argparse.o src/logtime.o libs/sqlite3.o
+	gcc $GCC_FLAGS libs/sqlite3.o libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c src/logtime.o -lcurl -levent -o monitor
 
 test/argparse:
 	gcc $GCC_FLAGS -c src/argparse.c -o src/argparse.o
@@ -55,23 +58,23 @@ install_dirs:
 	sudo mkdir -p /etc/hearthbeat
 	sudo chown $user:$group /etc/hearthbeat
 
-install_beat: install_dirs
-	sudo mv beat /usr/local/bin/beat
+install_services:
 	sudo mv beat.service /etc/systemd/system/beat.service
-
-install_monitor:
-	sudo mv monitor /usr/local/bin/monitor
 	sudo mv monitor.service /etc/systemd/system/monitor.service
 
-install: install_beat install_monitor
+install_exes: install_dirs
+	sudo mv beat /usr/local/bin/beat
+	sudo mv monitor /usr/local/bin/monitor
+
+install: install_exes install_services
 
 uninstall:
-	sudo rm /usr/local/bin/beat
-	sudo rm /usr/local/bin/monitor
-	sudo rm /etc/systemd/system/beat.service
-	sudo rm /etc/systemd/system/monitor.service
-	sudo rm -rf /var/hearthbeat
-	sudo rm -rf /etc/hearthbeat
+	-@sudo rm /usr/local/bin/beat
+	-@sudo rm /usr/local/bin/monitor
+	-@sudo rm /etc/systemd/system/beat.service
+	-@sudo rm /etc/systemd/system/monitor.service
+	-@sudo rm -rf /var/hearthbeat
+	-@sudo rm -rf /etc/hearthbeat
 EOF
 
 read -r -d '' unitfile <<EOF

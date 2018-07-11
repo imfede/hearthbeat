@@ -50,6 +50,7 @@ void handle_signal(int sig) {
     char buffer[256];
     snprintf(buffer, 256, "Stopping monitor on %s", myname);
     telegram_send_message(buffer);
+    logtime_close();
     exit(0);
 }
 
@@ -213,6 +214,7 @@ void handle_connection(int fd, short event, void *arg) { handle_answer(fd); }
 
 int main() {
     init();
+    logtime_init();
     telegram_init();
 
     base = event_base_new();

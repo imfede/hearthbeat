@@ -1,4 +1,5 @@
 #include "logtime.h"
+#include "../libs/sqlite3.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,6 +12,8 @@ struct named_clock {
 
 struct named_clock *clocks = NULL;
 int clocks_length = 0;
+
+sqlite3 *handle;
 
 struct named_clock *get_named_clock(char *name) {
     for (int i = 0; i < clocks_length; i++) {
@@ -60,3 +63,15 @@ void logtime_set_record(char *name) {
         handle_interval(name, &nclock->departure, &arrival_time);
     }
 }
+
+void logtime_init() {
+    sqlite3_open("/var/hearthbeat/database.db", &handle);
+    char *query = "CREATE TABLE test (id int);";
+    sqlite3_stmt *stmt;
+    sqlite3_prepare(handle, query, strlen(query), &stmt, NULL);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    sqlite3_close(handle);
+}
+
+void logtime_close() { sqlite3_close(handle); }
