@@ -3,6 +3,8 @@
 user=`whoami`
 group=`groups | cut -d' ' -f1`
 
+GCC_FLAGS=${GCC_FLAGS:-"-O3"}
+
 read -r -d '' makefile <<EOF
 `test $(uname) = "Darwin" && echo -n 'export C_INCLUDE_PATH=/opt/local/include'`
 `test $(uname) = "Darwin" && echo -n 'export LIBRARY_PATH=/opt/local/lib'`
@@ -10,26 +12,26 @@ read -r -d '' makefile <<EOF
 all: beat monitor
 
 beat:
-	gcc -O3 src/beat.c `test $(uname) = "Darwin" && echo -n '-largp'` -o beat
+	gcc $GCC_FLAGS src/beat.c `test $(uname) = "Darwin" && echo -n '-largp'` -o beat
 
 libs/cJSON.o:
-	gcc -O3 -c libs/cJSON.c -o libs/cJSON.o
+	gcc $GCC_FLAGS -c libs/cJSON.c -o libs/cJSON.o
 
 src/argparse.o:
-	gcc -O3 -c src/argparse.c -o src/argparse.o
+	gcc $GCC_FLAGS -c src/argparse.c -o src/argparse.o
 
 src/telegram.o:
-	gcc -O3 -c src/telegram.c -o src/telegram.o
+	gcc $GCC_FLAGS -c src/telegram.c -o src/telegram.o
 
 src/logtime.o:
-	gcc -O3 -c src/logtime.c -o src/logtime.o
+	gcc $GCC_FLAGS -c src/logtime.c -o src/logtime.o
 
 monitor: libs/cJSON.o src/telegram.o src/argparse.o src/logtime.o
-	gcc -O3 libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c src/logtime.o -lcurl -levent -o monitor
+	gcc $GCC_FLAGS libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c src/logtime.o -lcurl -levent -o monitor
 
 test/argparse:
-	gcc -g -c src/argparse.c -o src/argparse.o
-	gcc -g src/argparse.o test/argparse.c -o test/argparse
+	gcc $GCC_FLAGS -c src/argparse.c -o src/argparse.o
+	gcc $GCC_FLAGS src/argparse.o test/argparse.c -o test/argparse
 
 tests: test/argparse
 
@@ -45,6 +47,7 @@ clean: cleantests
 	-@rm beat.service 2>/dev/null
 	-@rm monitor.service 2>/dev/null
 	-@rm Makefile 2>/dev/null
+	-@rm *.dSYM 2>/dev/null
 
 install_dirs:
 	sudo mkdir -p /var/hearthbeat

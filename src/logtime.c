@@ -5,7 +5,7 @@
 struct timespec departure_time = {0};
 
 void handle_interval(struct timespec *start, struct timespec *end) {
-    printf("Recorded: %lds %ldns\n", end->tv_sec - start->tv_sec, end->tv_nsec - start->tv_nsec);
+    // printf("Recorded: %lds %ldns\n", end->tv_sec - start->tv_sec, end->tv_nsec - start->tv_nsec);
 }
 
 void logtime_set_start() { clock_gettime(CLOCK_REALTIME, &departure_time); }

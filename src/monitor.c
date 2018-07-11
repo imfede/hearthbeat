@@ -19,17 +19,22 @@
 char *configfile = "/etc/hearthbeat/monitor";
 int poll_interval;
 int err_interval;
-char *host;
-char *port;
-char *name;
 char *myname;
+
+struct target {
+    char *host;
+    char *port;
+    char *name;
+    struct event *poll_ev;
+    struct event *err_ev;
+    bool isonline;
+};
+struct target *targets = NULL;
+int targets_length = 0;
 
 int udp_server_socket = 0;
 char *message = "bip?";
 
-bool isonline = false;
-struct event *poll_ev;
-struct event *err_ev;
 struct event *listen_ev;
 struct event_base *base;
 struct timeval poll_tv;
@@ -52,13 +57,47 @@ void init() {
     signal(SIGTERM, &handle_signal);
     signal(SIGINT, &handle_signal);
 
-    argparse_register_argument_str("host", &host);
-    argparse_register_argument_str("port", &port);
-    argparse_register_argument_str("name", &name);
+    struct list_cell *list = NULL;
+    argparse_register_argument_strlst("target", &list);
     argparse_register_argument_str_def("myname", &myname, "myself");
     argparse_register_argument_int("poll_interval", &poll_interval);
     argparse_register_argument_int("err_interval", &err_interval);
     argparse_read_properties(configfile);
+
+    struct list_cell *iterator = list;
+    while (iterator != NULL) {
+        targets_length += 1;
+        targets = realloc(targets, targets_length * sizeof(struct target));
+        if (targets == NULL) {
+            die(errno, "Error reallocating targets\n");
+        }
+        struct target *newtarget = &targets[targets_length - 1];
+        int totallength = strlen(iterator->value);
+        char *firstcolon = strchr(iterator->value, ':');
+        char *lastcolon = strrchr(iterator->value, ':');
+        if (firstcolon == NULL || lastcolon == NULL) {
+            die(-1, "Not enough ':' in target definition: %s\n", iterator->value);
+        }
+
+        newtarget->name = malloc(firstcolon - iterator->value + 1);
+        memset(newtarget->name, 0x00, firstcolon - iterator->value + 1);
+        strncpy(newtarget->name, iterator->value, firstcolon - iterator->value);
+
+        newtarget->host = malloc(lastcolon - firstcolon + 1);
+        memset(newtarget->host, 0x00, lastcolon - firstcolon + 1);
+        strncpy(newtarget->host, firstcolon + 1, lastcolon - firstcolon - 1);
+
+        newtarget->port = malloc(iterator->value + totallength - lastcolon + 1);
+        memset(newtarget->port, 0x00, iterator->value + totallength - lastcolon + 1);
+        strncpy(newtarget->port, lastcolon + 1, iterator->value + totallength - lastcolon);
+
+        newtarget->poll_ev = NULL;
+        newtarget->err_ev = NULL;
+        newtarget->isonline = false;
+
+        iterator = iterator->next;
+    }
+    free_list_cell(list);
 
     poll_tv.tv_sec = poll_interval;
     poll_tv.tv_usec = 0;
@@ -100,9 +139,21 @@ int lookup_target(char *host, char *port, struct sockaddr_in *target) {
     return 0;
 }
 
-void send_bip() {
+struct target *get_target(struct sockaddr_in *client) {
+    for (int i = 0; i < targets_length; i++) {
+        struct target *iterator = &targets[i];
+        struct sockaddr_in resolved = {0};
+        lookup_target(iterator->host, iterator->port, &resolved);
+        if (client->sin_addr.s_addr == resolved.sin_addr.s_addr && client->sin_port == resolved.sin_port) {
+            return iterator;
+        }
+    }
+    return NULL;
+}
+
+void send_bip(struct target *arg) {
     struct sockaddr_in target;
-    if (lookup_target(host, port, &target) != 0) {
+    if (lookup_target(arg->host, arg->port, &target) != 0) {
         fprintf(stderr, "Lookup error!\n");
         return;
     }
@@ -111,32 +162,33 @@ void send_bip() {
         fprintf(stderr, "Error sending: %d\n", errno);
     } else {
         logtime_set_start();
-        printf("Sent: %s\n", message);
+        printf("Sending to %s: %s\n", arg->name, message);
     }
 }
 
-void handle_poll_event(int fd, short event, void *arg) { send_bip(); }
+void handle_poll_event(int fd, short event, void *arg) { send_bip((struct target *)arg); }
 
 void handle_err_event(int fd, short event, void *arg) {
-    if (isonline) {
-        isonline = false;
-        printf("%s: Host %s is down!\n", myname, name);
+    struct target *target;
+    if (target->isonline) {
+        target->isonline = false;
+        printf("%s: Host %s is down!\n", myname, target->name);
         char buffer[256];
-        snprintf(buffer, 256, "%s: Host %s is down!", myname, name);
+        snprintf(buffer, 256, "%s: Host %s is down!", myname, target->name);
         telegram_send_message(buffer);
     }
 }
 
-void reset_error_timer() {
-    if (!isonline) {
-        printf("%s: Host %s is up!\n", myname, name);
+void reset_error_timer(struct target *target) {
+    if (!target->isonline) {
+        printf("%s: Host %s is up!\n", myname, target->name);
         char buffer[256];
-        snprintf(buffer, 256, "%s: Host %s is up!", myname, name);
+        snprintf(buffer, 256, "%s: Host %s is up!", myname, target->name);
         telegram_send_message(buffer);
     }
-    isonline = true;
-    evtimer_del(err_ev);
-    evtimer_add(err_ev, &err_tv);
+    target->isonline = true;
+    evtimer_del(target->err_ev);
+    evtimer_add(target->err_ev, &err_tv);
 }
 
 void handle_answer(int fd) {
@@ -148,9 +200,12 @@ void handle_answer(int fd) {
     if (count == -1) {
         fprintf(stderr, "Cannot read UDP message: %d\n", errno);
     } else {
-        reset_error_timer();
-        logtime_set_record();
-        printf("Received: %s\n", buffer);
+        struct target *target = get_target(&client_addr);
+        if (target != NULL) {
+            reset_error_timer(target);
+            logtime_set_record();
+            printf("Received from %s: %s\n", target->name, buffer);
+        }
     }
 }
 
@@ -162,12 +217,16 @@ int main() {
 
     base = event_base_new();
 
-    poll_ev = event_new(base, -1, EV_PERSIST, &handle_poll_event, NULL);
-    err_ev = event_new(base, -1, EV_PERSIST, &handle_err_event, NULL);
-    listen_ev = event_new(base, udp_server_socket, EV_READ | EV_PERSIST, &handle_connection, NULL);
+    for (int i = 0; i < targets_length; i++) {
+        struct target *iterator = &targets[i];
+        iterator->poll_ev = event_new(base, -1, EV_PERSIST, &handle_poll_event, iterator);
+        iterator->err_ev = event_new(base, -1, EV_PERSIST, &handle_err_event, iterator);
 
-    evtimer_add(poll_ev, &poll_tv);
-    evtimer_add(err_ev, &err_tv);
+        evtimer_add(iterator->poll_ev, &poll_tv);
+        evtimer_add(iterator->err_ev, &err_tv);
+    }
+
+    listen_ev = event_new(base, udp_server_socket, EV_READ | EV_PERSIST, &handle_connection, NULL);
     event_add(listen_ev, NULL);
 
     char buffer[256];

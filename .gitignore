@@ -7,3 +7,4 @@ monitor
 Makefile
 *.service
 *.o
+*.dSYM

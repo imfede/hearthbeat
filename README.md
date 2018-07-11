@@ -38,17 +38,12 @@ token=<telegram_token>
 
 ### `/etc/hearthbeat/monitor`
 ```conf
-# the name of the target, used in the logs and in the notifications
-name=target
-
 # the name of the monitor, used in the logs and in the notifications
 myname=local
 
-# target host
-host=localhost
-
-# target UDP port
-port=48807
+# targets in the form <name>:<host>:<port>
+target=target1:localhost:48807
+target=target2:127.0.0.2:12345
 
 # UDP polling interval (in seconds)
 poll_interval=1
