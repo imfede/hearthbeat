@@ -161,7 +161,7 @@ void send_bip(struct target *arg) {
     if (sendto(udp_server_socket, message, strlen(message), 0, (struct sockaddr *)&target, sizeof(target)) < 0) {
         fprintf(stderr, "Error sending: %d\n", errno);
     } else {
-        logtime_set_start();
+        logtime_set_start(arg->name);
         printf("Sending to %s: %s\n", arg->name, message);
     }
 }
@@ -203,7 +203,7 @@ void handle_answer(int fd) {
         struct target *target = get_target(&client_addr);
         if (target != NULL) {
             reset_error_timer(target);
-            logtime_set_record();
+            logtime_set_record(target->name);
             printf("Received from %s: %s\n", target->name, buffer);
         }
     }
