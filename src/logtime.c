@@ -34,11 +34,65 @@ void timespec_diff(struct timespec *start, struct timespec *stop, struct timespe
     }
 }
 
-void handle_interval(char *name, struct timespec *start, struct timespec *end) {
-    struct timespec interval = {0};
-    timespec_diff(start, end, &interval);
-    printf("Clock %s: %lds %ldns\n", name, interval.tv_sec, interval.tv_nsec);
+void execute_simple_query(char *query) {
+    sqlite3_stmt *stmt;
+    sqlite3_prepare(handle, query, strlen(query), &stmt, NULL);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
 }
+
+int get_target_id(char *name) {
+    sqlite3_stmt *stmt;
+    char *query = "SELECT id FROM targets WHERE name = ?;";
+    sqlite3_prepare(handle, query, strlen(query), &stmt, NULL);
+    sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
+    int res = sqlite3_step(stmt);
+    int id = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    return res == SQLITE_DONE ? -1 : id;
+}
+
+void execute_insert_query(char *name, struct timespec *time) {
+    int id = get_target_id(name);
+    char *query;
+    sqlite3_stmt *stmt;
+
+    if (id == -1) {
+        query = "INSERT INTO targets (name) VALUES (?);";
+        sqlite3_prepare(handle, query, strlen(query), &stmt, NULL);
+        sqlite3_bind_text(stmt, 1, name, -1, SQLITE_STATIC);
+        sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+
+        id = get_target_id(name);
+    }
+
+    query = "INSERT INTO clocks (target, s, ns) VALUES (?, ?, ?);";
+    sqlite3_prepare(handle, query, strlen(query), &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, id);
+    sqlite3_bind_int(stmt, 2, time->tv_sec);
+    sqlite3_bind_int(stmt, 3, time->tv_nsec);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+}
+
+void logtime_init() {
+    sqlite3_open(logtime_conf, &handle);
+
+    execute_simple_query("CREATE TABLE IF NOT EXISTS targets ("
+                         "  id INTEGER PRIMARY KEY,"
+                         "  name TEXT);");
+
+    execute_simple_query("CREATE TABLE IF NOT EXISTS clocks ("
+                         "  target INTEGER,"
+                         "  time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+                         "  s INTEGER,"
+                         "  ns INTEGER,"
+                         "  FOREIGN KEY(target) REFERENCES targets(id));");
+}
+
+void logtime_close() { sqlite3_close(handle); }
 
 void logtime_set_start(char *name) {
     struct named_clock *nclock = get_named_clock(name);
@@ -60,18 +114,10 @@ void logtime_set_record(char *name) {
     } else {
         struct timespec arrival_time;
         clock_gettime(CLOCK_REALTIME, &arrival_time);
-        handle_interval(name, &nclock->departure, &arrival_time);
+
+        struct timespec interval;
+        timespec_diff(&nclock->departure, &arrival_time, &interval);
+
+        execute_insert_query(name, &interval);
     }
 }
-
-void logtime_init() {
-    sqlite3_open("/var/hearthbeat/database.db", &handle);
-    char *query = "CREATE TABLE test (id int);";
-    sqlite3_stmt *stmt;
-    sqlite3_prepare(handle, query, strlen(query), &stmt, NULL);
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    sqlite3_close(handle);
-}
-
-void logtime_close() { sqlite3_close(handle); }
