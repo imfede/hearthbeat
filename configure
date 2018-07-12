@@ -4,6 +4,7 @@ user=`whoami`
 group=`groups | cut -d' ' -f1`
 
 GCC_FLAGS=${GCC_FLAGS:-"-O3"}
+EXTRA_LIBS=`test $(uname) = "Darwin" || echo -n "-pthread -ldl"`
 
 read -r -d '' makefile <<EOF
 `test $(uname) = "Darwin" && echo -n 'export C_INCLUDE_PATH=/opt/local/include'`
@@ -30,7 +31,7 @@ src/logtime.o:
 	gcc $GCC_FLAGS -c src/logtime.c -o src/logtime.o
 
 monitor: libs/cJSON.o src/telegram.o src/argparse.o src/logtime.o libs/sqlite3.o
-	gcc $GCC_FLAGS libs/sqlite3.o libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c src/logtime.o -lcurl -levent -o monitor
+	gcc $GCC_FLAGS libs/sqlite3.o libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c src/logtime.o -lcurl -levent $EXTRA_LIBS -o monitor
 
 test/argparse:
 	gcc $GCC_FLAGS -c src/argparse.c -o src/argparse.o
