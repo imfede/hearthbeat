@@ -170,7 +170,7 @@ void send_bip(struct target *arg) {
 void handle_poll_event(int fd, short event, void *arg) { send_bip((struct target *)arg); }
 
 void handle_err_event(int fd, short event, void *arg) {
-    struct target *target;
+    struct target *target = (struct target *) arg;
     if (target->isonline) {
         target->isonline = false;
         printf("%s: Host %s is down!\n", myname, target->name);
