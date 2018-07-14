@@ -1,8 +1,7 @@
 .vscode
 *.out
 
-beat
-monitor
+build
 
 Makefile
 *.service

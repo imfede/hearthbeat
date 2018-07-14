@@ -10,10 +10,13 @@ read -r -d '' makefile <<EOF
 `test $(uname) = "Darwin" && echo -n 'export C_INCLUDE_PATH=/opt/local/include'`
 `test $(uname) = "Darwin" && echo -n 'export LIBRARY_PATH=/opt/local/lib'`
 
-all: beat monitor
+all: beat monitor hearth
 
-beat:
-	gcc $GCC_FLAGS src/beat.c `test $(uname) = "Darwin" && echo -n '-largp'` -o beat
+build:
+	mkdir -p build
+
+beat: build
+	gcc $GCC_FLAGS src/beat.c `test $(uname) = "Darwin" && echo -n '-largp'` -o build/beat
 
 libs/cJSON.o:
 	gcc $GCC_FLAGS -c libs/cJSON.c -o libs/cJSON.o
@@ -30,8 +33,8 @@ src/telegram.o:
 src/logtime.o:
 	gcc $GCC_FLAGS -c src/logtime.c -o src/logtime.o
 
-monitor: libs/cJSON.o src/telegram.o src/argparse.o src/logtime.o libs/sqlite3.o
-	gcc $GCC_FLAGS libs/sqlite3.o libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c src/logtime.o -lcurl -levent $EXTRA_LIBS -o monitor
+monitor: build libs/cJSON.o src/telegram.o src/argparse.o src/logtime.o libs/sqlite3.o
+	gcc $GCC_FLAGS libs/sqlite3.o libs/cJSON.o src/telegram.o src/argparse.o src/monitor.c src/logtime.o -lcurl -levent $EXTRA_LIBS -o build/monitor
 
 test/argparse:
 	gcc $GCC_FLAGS -c src/argparse.c -o src/argparse.o
@@ -39,17 +42,26 @@ test/argparse:
 
 tests: test/argparse
 
+frontend:
+	cd hearth/frontend; yarn install; yarn build
+
+hearth: build frontend
+	-@rm -rf hearth/api/static
+	mkdir -p hearth/api/static
+	cp -R hearth/frontend/build/* hearth/api/static/
+	cd hearth/api; yarn install; yarn pkg --target node9 package.json
+	cp hearth/api/node_modules/sqlite3/lib/binding/node-*/node_sqlite3.node build/node_sqlite3.node
+	mv hearth/api/hearth build/hearth
+
 cleantests:
 	-@rm src/argparse.o 2>/dev/null
 	-@rm test/argparse 2>/dev/null
 
 clean: cleantests
-	-@rm beat 2>/dev/null
-	-@rm monitor 2>/dev/null
+	-@rm -rf build 2>/dev/null
 	-@rm libs/*.o 2>/dev/null
 	-@rm src/*.o 2>/dev/null
-	-@rm beat.service 2>/dev/null
-	-@rm monitor.service 2>/dev/null
+	-@rm *.service 2>/dev/null
 	-@rm Makefile 2>/dev/null
 	-@rm -rf *.dSYM 2>/dev/null
 
@@ -60,8 +72,7 @@ install_dirs:
 	sudo chown $user:$group /etc/hearthbeat
 
 install_services:
-	sudo mv beat.service /etc/systemd/system/beat.service
-	sudo mv monitor.service /etc/systemd/system/monitor.service
+	sudo mv *.service /etc/systemd/system/
 
 install_exes: install_dirs
 	sudo mv beat /usr/local/bin/beat

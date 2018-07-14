@@ -8,7 +8,7 @@
     "pkg": "4.3.1"
   },
   "pkg": {
-    "assets": "../frontend/build/*"
+    "assets": "static/*"
   },
   "bin": "src/index.js",
   "name": "hearth"

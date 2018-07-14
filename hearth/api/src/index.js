@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const TargetRepository = require('./TargetRepository');
@@ -38,6 +39,6 @@ router.get('/clocks/:id/count', function (req, res) {
 
 app.use(cors());
 app.use('/api', router);
-app.use(express.static('../frontend/build'));
+app.use(express.static(path.join(__dirname, '../static')));
 
 app.listen(4000);
