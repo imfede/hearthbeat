@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const TargetRepository = require('./TargetRepository');
 const ClocksRepository = require('./ClocksRepository');
 
@@ -21,13 +22,20 @@ router.get('/clocks/count', function(req, res) {
 });
 
 router.get('/clocks/:id', function(req, res) {
-    clocksRepository.getClocks(req.params.id, req.query.limit, req.query.offset).then(clocks => res.json(clocks));
+    let options = {
+        id: req.params.id,
+        limit: req.query.limit,
+        offset: req.query.offset,
+        reverse: req.query.reverse
+    };
+    clocksRepository.getClocks(options).then(clocks => res.json(clocks));
 });
 
 router.get('/clocks/:id/count', function(req, res) {
     clocksRepository.countClocks(req.params.id).then(count => res.json(count));
 });
 
+app.use(cors());
 app.use('/api', router);
 
 app.listen(4000);
