@@ -1,0 +1,14 @@
+nav {
+    padding: 0 50px;
+}
+
+.ct-series-a .ct-line {
+    stroke: red;
+    stroke-width: 2px;
+  }
+  
+  .ct-series-a .ct-point {
+    stroke: red;
+    stroke-width: 4px;
+    stroke-linecap: none;
+  }
