@@ -15,7 +15,7 @@ class Target extends Component {
 
     getTargetData(target) {
         $.get({
-            url: `http://localhost:4000/api/clocks/${target.id}`,
+            url: `/api/clocks/${target.id}`,
             dataType: 'json',
             data: { reverse: true }
         }).then(data => this.setState({ data: data.reverse() }));
@@ -23,7 +23,7 @@ class Target extends Component {
 
     getTargetInfo(target) {
         $.get({
-            url: `http://localhost:4000/api/clocks/${target.id}/count`,
+            url: `/api/clocks/${target.id}/count`,
             dataType: 'json'
         }).then(data => this.setState({ targetInfo: data }));
     }

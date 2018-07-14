@@ -75,8 +75,7 @@ install_services:
 	sudo mv *.service /etc/systemd/system/
 
 install_exes: install_dirs
-	sudo mv beat /usr/local/bin/beat
-	sudo mv monitor /usr/local/bin/monitor
+	sudo mv build/* /usr/local/bin/
 
 install: install_exes install_services
 
@@ -95,7 +94,7 @@ Description=Very simple heartbeat service
 
 [Service]
 User=$user
-Group=$user
+Group=$group
 Type=forking
 PIDFile=/var/hearthbeat/pid
 ExecStart=/usr/local/bin/beat
@@ -111,9 +110,24 @@ Description=Very simple monitor service
 
 [Service]
 User=$user
-Group=$user
+Group=$group
 Type=simple
 ExecStart=/usr/local/bin/monitor
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+read -r -d '' hearthunitfile <<EOF
+[Unit]
+Description=Very simple frontend for the monitor service
+
+[Service]
+User=$user
+Group=$group
+Type=simple
+ExecStart=/usr/local/bin/hearth
 Restart=always
 
 [Install]
@@ -123,3 +137,4 @@ EOF
 echo "$makefile" > Makefile
 echo "$unitfile" > beat.service
 echo "$monitorunitfile" > monitor.service
+echo "$hearthunitfile" > hearth.service
