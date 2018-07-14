@@ -3,5 +3,13 @@
     "cors": "^2.8.4",
     "express": "^4.16.3",
     "sqlite3": "^4.0.1"
-  }
+  },
+  "devDependencies": {
+    "pkg": "4.3.1"
+  },
+  "pkg": {
+    "assets": "../frontend/build/*"
+  },
+  "bin": "src/index.js",
+  "name": "hearth"
 }
