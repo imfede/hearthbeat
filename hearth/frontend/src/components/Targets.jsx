@@ -15,7 +15,7 @@ class Targets extends Component {
 
     updateStates() {
         $.get({
-            url: "http://localhost:4000/api/targets",
+            url: "/api/targets",
             dataType: "json"
         }).done(data => {
             this.setState({ targets: data, filtered: data });
