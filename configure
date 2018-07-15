@@ -49,7 +49,7 @@ hearth: build frontend
 	-@rm -rf hearth/api/static
 	mkdir -p hearth/api/static
 	cp -R hearth/frontend/build/* hearth/api/static/
-	cd hearth/api; yarn install; yarn pkg --target node9 package.json
+	cd hearth/api; yarn install; yarn pkg --target host package.json
 	cp hearth/api/node_modules/sqlite3/lib/binding/node-*/node_sqlite3.node build/node_sqlite3.node
 	mv hearth/api/hearth build/hearth
 
