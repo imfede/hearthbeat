@@ -9,8 +9,16 @@ class Target extends Component {
         this.state = {
             target: {},
             targetInfo: {},
-            data: []
+            data: [],
+            timer: -1
         };
+    }
+
+    clearTimer() {
+        if (this.state.timer != -1) {
+            clearInterval(this.state.timer);
+            this.setState({ timer: -1 });
+        }
     }
 
     getTargetData(target) {
@@ -29,9 +37,16 @@ class Target extends Component {
     }
 
     setTarget(target) {
+        this.clearTimer();
+
         this.getTargetInfo(target);
         this.getTargetData(target);
-        this.setState({ target: target });
+        let timer = setInterval(this.getTargetInfo.bind(this, target), 5 * 1000);
+        this.setState({ target: target, timer: timer });
+    }
+
+    componentWillUnmount() {
+        this.clearTimer();
     }
 
     render() {
