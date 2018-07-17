@@ -41,4 +41,4 @@ app.use(cors());
 app.use('/api', router);
 app.use(express.static(path.join(__dirname, '../static')));
 
-app.listen(4000);
+app.listen(4000, "0.0.0.0");
