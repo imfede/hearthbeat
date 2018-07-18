@@ -165,6 +165,9 @@ void send_bip(struct target *arg) {
         logtime_set_start(arg->name);
         printf("Sending to %s: %s\n", arg->name, message);
     }
+
+    fflush(stdout);
+    fflush(stderr);
 }
 
 void handle_poll_event(int fd, short event, void *arg) { send_bip((struct target *)arg); }
@@ -177,6 +180,9 @@ void handle_err_event(int fd, short event, void *arg) {
         char buffer[256];
         snprintf(buffer, 256, "%s: Host %s is down!", myname, target->name);
         telegram_send_message(buffer);
+
+        fflush(stdout);
+        fflush(stderr);
     }
 }
 
@@ -203,11 +209,13 @@ void handle_answer(int fd) {
     } else {
         struct target *target = get_target(&client_addr);
         if (target != NULL) {
+            printf("Received from %s: %s\n", target->name, buffer);
             reset_error_timer(target);
             logtime_set_record(target->name);
-            printf("Received from %s: %s\n", target->name, buffer);
         }
     }
+    fflush(stdout);
+    fflush(stderr);
 }
 
 void handle_connection(int fd, short event, void *arg) { handle_answer(fd); }

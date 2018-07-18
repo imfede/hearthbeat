@@ -201,6 +201,8 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "Error sending: %d\n", errno);
                 }
             }
+            fflush(stdout);
+            fflush(stderr);
         }
     } else {
         // parent
