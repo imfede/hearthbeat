@@ -194,7 +194,6 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "Error: %s\n", gai_strerror(err));
                 } else {
                     printf("Received UDP message from %s\n", out);
-                    fflush(stdout);
                 }
                 if (sendto(udp_server_socket, message, strlen(message), 0, (struct sockaddr *)&client_addr, sockaddr_len) < 0) {
                     fprintf(stderr, "Error sending: %d\n", errno);
