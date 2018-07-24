@@ -176,7 +176,6 @@ int main(int argc, char **argv) {
 
                 if (close(tcp_sock) < 0) {
                     fprintf(stderr, "Cannot close TCP socket, error: %d\n", errno);
-                    close(tcp_sock);
                 }
             } else if (fds[1].revents & POLLIN) {
                 // someone contacted me over UDP
