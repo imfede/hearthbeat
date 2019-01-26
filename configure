@@ -42,10 +42,7 @@ test/argparse:
 
 tests: test/argparse
 
-frontend:
-	cd hearth/frontend; yarn install; yarn build
-
-hearth: build frontend
+hearth: build
 	-@rm -rf hearth/api/static
 	mkdir -p hearth/api/static
 	cp -R hearth/frontend/build/* hearth/api/static/
@@ -119,22 +116,6 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 
-read -r -d '' hearthunitfile <<EOF
-[Unit]
-Description=Very simple frontend for the monitor service
-
-[Service]
-User=$user
-Group=$group
-Type=simple
-ExecStart=/usr/local/bin/hearth
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
 echo "$makefile" > Makefile
 echo "$unitfile" > beat.service
 echo "$monitorunitfile" > monitor.service
-echo "$hearthunitfile" > hearth.service
