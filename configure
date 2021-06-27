@@ -10,7 +10,7 @@ read -r -d '' makefile <<EOF
 `test $(uname) = "Darwin" && echo -n 'export C_INCLUDE_PATH=/opt/local/include'`
 `test $(uname) = "Darwin" && echo -n 'export LIBRARY_PATH=/opt/local/lib'`
 
-all: beat monitor hearth
+all: beat monitor
 
 build:
 	mkdir -p build
@@ -41,14 +41,6 @@ test/argparse:
 	gcc $GCC_FLAGS src/argparse.o test/argparse.c -o test/argparse
 
 tests: test/argparse
-
-hearth: build
-	-@rm -rf hearth/api/static
-	mkdir -p hearth/api/static
-	cp -R hearth/frontend/build/* hearth/api/static/
-	cd hearth/api; yarn install; yarn pkg --target host package.json
-	cp hearth/api/node_modules/sqlite3/lib/binding/node-*/node_sqlite3.node build/node_sqlite3.node
-	mv hearth/api/hearth build/hearth
 
 cleantests:
 	-@rm src/argparse.o 2>/dev/null
